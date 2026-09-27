@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="description"
+    content="Book Reading Project — Islamic Book Reading & Assessment"
+  >
+
+  <title>Book Reading Project</title>
+
+  <!-- Main stylesheet -->
+  <link
+    rel="stylesheet"
+    href="/css/style.css"
+  >
+</head>
+
+<body>
+
+  <!-- =====================================================
+       LOGIN SCREEN
+       ===================================================== -->
+
+  <div id="loginScreen" class="screen">
+
+    <div class="login-card">
+
+      <div class="login-header">
+
+        <div class="brand-mark">
+          BRP
+        </div>
+
+        <h1>
+          Book Reading Project
+        </h1>
+
+        <p>
+          Islamic Book Reading &amp; Assessment
+        </p>
+
+      </div>
+
+
+      <div class="login-form">
+
+        <div class="form-group">
+
+          <label for="studentId">
+            Student ID
+          </label>
+
+          <input
+            type="text"
+            id="studentId"
+            placeholder="Enter your Student ID"
+            autocomplete="username"
+          >
+
+        </div>
+
+
+        <div class="form-group">
+
+          <label for="studentPin">
+            Examination PIN
+          </label>
+
+          <input
+            type="password"
+            id="studentPin"
+            placeholder="Enter your Examination PIN"
+            autocomplete="current-password"
+          >
+
+        </div>
+
+
+        <button
+          type="button"
+          class="primary-btn"
+          onclick="login()"
+        >
+          Login
+        </button>
+
+
+        <div
+          id="loginMessage"
+          class="message"
+        ></div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =====================================================
+       DASHBOARD SCREEN
+       ===================================================== -->
+
+  <div
+    id="dashboardScreen"
+    class="screen hidden"
+  >
+
+    <!-- Top Navigation -->
+
+    <header class="topbar">
+
+      <div class="topbar-brand">
+
+        <div class="brand-mark small">
+          BRP
+        </div>
+
+        <div>
+
+          <h2>
+            Book Reading Project
+          </h2>
+
+          <span>
+            Islamic Book Reading &amp; Assessment
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <div class="topbar-user">
+
+        <span id="studentName">
+          Student
+        </span>
+
+        <button
+          type="button"
+          class="logout-btn"
+          onclick="logout()"
+        >
+          Logout
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <!-- Dashboard Content -->
+
+    <main class="dashboard-content">
+
+      <section class="page-heading">
+
+        <div>
+
+          <span class="section-label">
+            Student Dashboard
+          </span>
+
+          <h1>
+            Available Books
+          </h1>
+
+          <p>
+            Select a book to view its assessment details.
+          </p>
+
+        </div>
+
+      </section>
+
+
+      <section
+        id="booksContainer"
+        class="books-container"
+      >
+        <!-- Books will be loaded here by JavaScript -->
+      </section>
+
+    </main>
+
+  </div>
+
+
+  <!-- =====================================================
+       BOOK INFORMATION SCREEN
+       ===================================================== -->
+
+  <div
+    id="bookScreen"
+    class="screen hidden"
+  >
+
+    <header class="topbar">
+
+      <div class="topbar-brand">
+
+        <div class="brand-mark small">
+          BRP
+        </div>
+
+        <div>
+
+          <h2>
+            Book Reading Project
+          </h2>
+
+          <span>
+            Book Information
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <button
+        type="button"
+        class="logout-btn"
+        onclick="logout()"
+      >
+        Logout
+      </button>
+
+    </header>
+
+
+    <main class="book-content">
+
+      <button
+        type="button"
+        class="back-btn"
+        onclick="showDashboard()"
+      >
+        ← Back to Dashboard
+      </button>
+
+
+      <section class="book-card">
+
+        <div class="book-card-header">
+
+          <span class="section-label">
+            Selected Book
+          </span>
+
+          <h1 id="bookTitle">
+            Book Title
+          </h1>
+
+          <p id="bookAuthor">
+            Author
+          </p>
+
+        </div>
+
+
+        <div class="book-description">
+
+          <h3>
+            About the Book
+          </h3>
+
+          <p id="bookDescription">
+            Book description will appear here.
+          </p>
+
+        </div>
+
+
+        <div class="book-details">
+
+          <div class="detail-item">
+
+            <span class="detail-label">
+              Questions
+            </span>
+
+            <strong id="bookQuestions">
+              0
+            </strong>
+
+          </div>
+
+
+          <div class="detail-item">
+
+            <span class="detail-label">
+              Duration
+            </span>
+
+            <strong id="bookDuration">
+              0 minutes
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="exam-notice">
+
+          <div class="notice-icon">
+            !
+          </div>
+
+          <div>
+
+            <h3>
+              Before You Begin
+            </h3>
+
+            <p>
+              Make sure you are ready before starting the
+              examination. Once the examination begins,
+              your attempt will be recorded.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="primary-btn start-exam-btn"
+          onclick="startExam()"
+        >
+          Start Examination
+        </button>
+
+      </section>
+
+    </main>
+
+  </div>
+
+
+  <!-- =====================================================
+       EXAMINATION SCREEN
+       ===================================================== -->
+
+  <div
+    id="examScreen"
+    class="screen hidden"
+  >
+
+    <!-- Exam Header -->
+
+    <header class="exam-header">
+
+      <div class="exam-brand">
+
+        <div class="brand-mark small">
+          BRP
+        </div>
+
+        <div>
+
+          <h2>
+            Seerah Examination
+          </h2>
+
+          <span>
+            Book Reading Project
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <!-- Timer -->
+
+      <div class="exam-timer">
+
+        <span class="timer-label">
+          Time Remaining
+        </span>
+
+        <strong id="timer">
+          60:00
+        </strong>
+
+      </div>
+
+    </header>
+
+
+    <!-- Exam Body -->
+
+    <main class="exam-content">
+
+      <!-- Question Area -->
+
+      <section class="question-panel">
+
+        <div class="question-top">
+
+          <div>
+
+            <span class="question-label">
+              Question
+            </span>
+
+            <h3 id="questionNumber">
+              Question 1
+            </h3>
+
+          </div>
+
+
+          <button
+            type="button"
+            id="reviewButton"
+            class="review-btn"
+            onclick="toggleReview()"
+          >
+            ☆ Mark for Review
+          </button>
+
+        </div>
+
+
+        <div class="question-box">
+
+          <p id="questionText">
+            Question text will appear here.
+          </p>
+
+        </div>
+
+
+        <!-- Options -->
+
+        <div
+          id="optionsContainer"
+          class="options-container"
+        >
+          <!-- Options will be generated by JavaScript -->
+        </div>
+
+
+        <!-- Question Navigation Buttons -->
+
+        <div class="question-actions">
+
+          <button
+            type="button"
+            id="previousButton"
+            class="secondary-btn"
+            onclick="previousQuestion()"
+          >
+            ← Previous
+          </button>
+
+
+          <button
+            type="button"
+            id="nextButton"
+            class="primary-btn"
+            onclick="nextQuestion()"
+          >
+            Next →
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- Question Navigator -->
+
+      <aside class="question-sidebar">
+
+        <div class="navigator-header">
+
+          <h3>
+            Questions
+          </h3>
+
+          <p>
+            Navigate through the examination.
+          </p>
+
+        </div>
+
+
+        <div
+          id="questionNavigator"
+          class="question-navigator"
+        >
+          <!-- Question numbers generated by JavaScript -->
+        </div>
+
+
+        <!-- Navigator Legend -->
+
+        <div class="navigator-legend">
+
+          <div class="legend-item">
+
+            <span class="legend-box answered"></span>
+
+            <span>
+              Answered
+            </span>
+
+          </div>
+
+
+          <div class="legend-item">
+
+            <span class="legend-box current"></span>
+
+            <span>
+              Current
+            </span>
+
+          </div>
+
+
+          <div class="legend-item">
+
+            <span class="legend-box review"></span>
+
+            <span>
+              Review
+            </span>
+
+          </div>
+
+
+          <div class="legend-item">
+
+            <span class="legend-box unanswered"></span>
+
+            <span>
+              Unanswered
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <!-- Submit -->
+
+        <button
+          type="button"
+          class="submit-exam-btn"
+          onclick="confirmSubmit()"
+        >
+          Submit Examination
+        </button>
+
+      </aside>
+
+    </main>
+
+  </div>
+
+
+  <!-- =====================================================
+       RESULT SCREEN
+       ===================================================== -->
+
+  <div
+    id="resultScreen"
+    class="screen hidden"
+  >
+
+    <div class="result-wrapper">
+
+      <section class="result-card">
+
+        <div class="result-icon">
+          ✓
+        </div>
+
+
+        <span class="section-label">
+          Examination Completed
+        </span>
+
+
+        <h1>
+          Your Result
+        </h1>
+
+
+        <p class="result-intro">
+          Your examination has been submitted successfully.
+        </p>
+
+
+        <!-- Score -->
+
+        <div class="result-score">
+
+          <span>
+            Score
+          </span>
+
+          <strong id="resultScore">
+            0 / 0
+          </strong>
+
+        </div>
+
+
+        <!-- Percentage -->
+
+        <div class="result-percentage">
+
+          <span>
+            Percentage
+          </span>
+
+          <strong id="resultPercentage">
+            0%
+          </strong>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="primary-btn"
+          onclick="showDashboard()"
+        >
+          Return to Dashboard
+        </button>
+
+      </section>
+
+    </div>
+
+  </div>
+
+
+  <!-- =====================================================
+       GLOBAL LOADING OVERLAY
+       ===================================================== -->
+
+  <div
+    id="loadingOverlay"
+    class="loading-overlay hidden"
+  >
+
+    <div class="loading-card">
+
+      <div class="loader"></div>
+
+      <p id="loadingMessage">
+        Please wait...
+      </p>
+
+    </div>
+
+  </div>
+
+
+  <!-- =====================================================
+       CONFIRMATION MODAL
+       ===================================================== -->
+
+  <div
+    id="confirmModal"
+    class="modal-overlay hidden"
+  >
+
+    <div class="modal-card">
+
+      <div class="modal-icon">
+        !
+      </div>
+
+      <h2>
+        Submit Examination?
+      </h2>
+
+      <p>
+        Are you sure you want to submit your examination?
+        You will not be able to change your answers after
+        submission.
+      </p>
+
+
+      <div class="modal-actions">
+
+        <button
+          type="button"
+          class="secondary-btn"
+          onclick="closeConfirmModal()"
+        >
+          Continue Examination
+        </button>
+
+        <button
+          type="button"
+          class="danger-btn"
+          onclick="submitExam()"
+        >
+          Submit Examination
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =====================================================
+       JAVASCRIPT
+       ===================================================== -->
+
+  <script src="/js/app.js"></script>
+
+</body>
+
+</html>
