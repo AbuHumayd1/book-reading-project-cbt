@@ -41,41 +41,29 @@ let visibilityWarningShown = false;
    API HELPER
    ========================================================= */
 
-/**
- * Sends requests to the Netlify Function.
- *
- * Frontend:
- *     fetch("/api")
- *
- * Netlify:
- *     /.netlify/functions/api
- *
- * Netlify Function:
- *     Google Apps Script
- *
- * @param {string} action
- * @param {object} data
- * @returns {Promise<any>}
- */
-async function api(action, data = {}) {
+async function api(
+  action,
+  data = {}
+) {
 
   try {
 
-    const response = await fetch(
-      "/api",
-      {
-        method: "POST",
+    const response =
+      await fetch(
+        "/api",
+        {
+          method: "POST",
 
-        headers: {
-          "Content-Type": "application/json"
-        },
+          headers: {
+            "Content-Type": "application/json"
+          },
 
-        body: JSON.stringify({
-          action: action,
-          data: data
-        })
-      }
-    );
+          body: JSON.stringify({
+            action: action,
+            data: data
+          })
+        }
+      );
 
 
     if (!response.ok) {
@@ -83,10 +71,12 @@ async function api(action, data = {}) {
       let errorMessage =
         `Request failed with status ${response.status}.`;
 
+
       try {
 
         const errorData =
           await response.json();
+
 
         errorMessage =
           errorData.message ||
@@ -94,10 +84,13 @@ async function api(action, data = {}) {
           errorMessage;
 
       } catch (parseError) {
-        // Keep original error message.
+        // Keep original error.
       }
 
-      throw new Error(errorMessage);
+
+      throw new Error(
+        errorMessage
+      );
     }
 
 
@@ -117,12 +110,14 @@ async function api(action, data = {}) {
 
     return result.data;
 
+
   } catch (error) {
 
     console.error(
       "API ERROR:",
       error
     );
+
 
     throw error;
   }
@@ -135,38 +130,57 @@ async function api(action, data = {}) {
 
 function getElement(id) {
 
-  return document.getElementById(id);
+  return document.getElementById(
+    id
+  );
 }
 
 
-function setText(id, value) {
+function setText(
+  id,
+  value
+) {
 
-  const element = getElement(id);
+  const element =
+    getElement(id);
+
 
   if (element) {
+
     element.textContent =
       value ?? "";
   }
 }
 
 
-function showLoading(message = "Please wait...") {
+function showLoading(
+  message = "Please wait..."
+) {
 
   const overlay =
-    getElement("loadingOverlay");
+    getElement(
+      "loadingOverlay"
+    );
+
 
   const loadingMessage =
-    getElement("loadingMessage");
+    getElement(
+      "loadingMessage"
+    );
 
 
   if (loadingMessage) {
+
     loadingMessage.textContent =
       message;
   }
 
 
   if (overlay) {
-    overlay.classList.remove("hidden");
+
+    overlay.classList.remove(
+      "hidden"
+    );
   }
 }
 
@@ -174,11 +188,16 @@ function showLoading(message = "Please wait...") {
 function hideLoading() {
 
   const overlay =
-    getElement("loadingOverlay");
+    getElement(
+      "loadingOverlay"
+    );
 
 
   if (overlay) {
-    overlay.classList.add("hidden");
+
+    overlay.classList.add(
+      "hidden"
+    );
   }
 }
 
@@ -190,16 +209,28 @@ function hideLoading() {
 async function login() {
 
   const studentIdElement =
-    getElement("studentId");
+    getElement(
+      "studentId"
+    );
+
 
   const pinElement =
-    getElement("studentPin");
+    getElement(
+      "studentPin"
+    );
+
 
   const messageElement =
-    getElement("loginMessage");
+    getElement(
+      "loginMessage"
+    );
 
 
-  if (!studentIdElement || !pinElement) {
+  if (
+    !studentIdElement ||
+    !pinElement
+  ) {
+
     return;
   }
 
@@ -207,21 +238,26 @@ async function login() {
   const studentId =
     studentIdElement.value.trim();
 
+
   const pin =
     pinElement.value.trim();
 
 
   if (messageElement) {
-    messageElement.textContent = "";
+
+    messageElement.textContent =
+      "";
   }
 
 
   if (!studentId) {
 
     if (messageElement) {
+
       messageElement.textContent =
         "Please enter your Student ID.";
     }
+
 
     studentIdElement.focus();
 
@@ -232,9 +268,11 @@ async function login() {
   if (!pin) {
 
     if (messageElement) {
+
       messageElement.textContent =
         "Please enter your Examination PIN.";
     }
+
 
     pinElement.focus();
 
@@ -244,34 +282,28 @@ async function login() {
 
   try {
 
-    showLoading("Verifying your details...");
+    showLoading(
+      "Verifying your details..."
+    );
 
 
     const result =
       await api(
         "loginStudent",
         {
-          studentId: studentId,
-          pin: pin
+          studentId:
+            studentId,
+
+          pin:
+            pin
         }
       );
 
 
-    /*
-     * Expected backend response:
-     *
-     * {
-     *   success: true,
-     *   student: {...},
-     *   message: "Login successful."
-     * }
-     *
-     * The Netlify API wrapper returns this object
-     * as result.
-     */
-
-
-    if (!result || result.success === false) {
+    if (
+      !result ||
+      result.success === false
+    ) {
 
       throw new Error(
         result?.message ||
@@ -293,37 +325,44 @@ async function login() {
     }
 
 
-    /*
-     * Keep the student in sessionStorage so that
-     * accidental page refreshes can be detected.
-     *
-     * We do NOT store the student's PIN here.
-     */
-    try {
-
-      sessionStorage.setItem(
-        "brp_student",
-        JSON.stringify(currentStudent)
-      );
-
-    } catch (storageError) {
-      console.warn(
-        "Unable to save student session.",
-        storageError
-      );
-    }
+    saveStudentSession(
+      currentStudent
+    );
 
 
     setText(
       "studentName",
-      getStudentName(currentStudent)
+      getStudentName(
+        currentStudent
+      )
     );
 
 
     await loadBooks();
 
 
-    showScreen("dashboardScreen");
+    /*
+     * IMPORTANT:
+     *
+     * After login we also check whether this student
+     * already has an active attempt.
+     *
+     * This protects against:
+     *
+     * - refresh
+     * - accidental page reload
+     * - returning to the site while an exam is active
+     */
+    const resumed =
+      await attemptExamRecovery();
+
+
+    if (!resumed) {
+
+      showScreen(
+        "dashboardScreen"
+      );
+    }
 
 
   } catch (error) {
@@ -353,9 +392,12 @@ async function login() {
    STUDENT NAME
    ========================================================= */
 
-function getStudentName(student) {
+function getStudentName(
+  student
+) {
 
   if (!student) {
+
     return "Student";
   }
 
@@ -372,6 +414,33 @@ function getStudentName(student) {
 
 
 /* =========================================================
+   STUDENT SESSION
+   ========================================================= */
+
+function saveStudentSession(
+  student
+) {
+
+  try {
+
+    sessionStorage.setItem(
+      "brp_student",
+      JSON.stringify(
+        student
+      )
+    );
+
+  } catch (error) {
+
+    console.warn(
+      "Unable to save student session.",
+      error
+    );
+  }
+}
+
+
+/* =========================================================
    LOAD BOOKS
    ========================================================= */
 
@@ -379,23 +448,35 @@ async function loadBooks() {
 
   try {
 
-    showLoading("Loading available books...");
+    showLoading(
+      "Loading available books..."
+    );
 
 
     const result =
-      await api("getBooks");
+      await api(
+        "getBooks"
+      );
 
 
-    if (Array.isArray(result)) {
+    if (
+      Array.isArray(
+        result
+      )
+    ) {
 
-      books = result;
+      books =
+        result;
 
     } else if (
       result &&
-      Array.isArray(result.books)
+      Array.isArray(
+        result.books
+      )
     ) {
 
-      books = result.books;
+      books =
+        result.books;
 
     } else {
 
@@ -415,7 +496,9 @@ async function loadBooks() {
 
 
     const container =
-      getElement("booksContainer");
+      getElement(
+        "booksContainer"
+      );
 
 
     if (container) {
@@ -446,15 +529,19 @@ async function loadBooks() {
 function renderBooks() {
 
   const container =
-    getElement("booksContainer");
+    getElement(
+      "booksContainer"
+    );
 
 
   if (!container) {
+
     return;
   }
 
 
-  container.innerHTML = "";
+  container.innerHTML =
+    "";
 
 
   if (!books.length) {
@@ -473,110 +560,120 @@ function renderBooks() {
   }
 
 
-  books.forEach(function(book, index) {
+  books.forEach(
+    function(book, index) {
 
-    const bookId =
-      book.bookId ??
-      book.id ??
-      book.ID ??
-      index;
-
-
-    const title =
-      book.title ??
-      book.bookTitle ??
-      book.name ??
-      "Untitled Book";
+      const bookId =
+        book.bookId ??
+        book.id ??
+        book.ID ??
+        index;
 
 
-    const author =
-      book.author ??
-      book.bookAuthor ??
-      "Unknown Author";
+      const title =
+        book.title ??
+        book.bookTitle ??
+        book.name ??
+        "Untitled Book";
 
 
-    const description =
-      book.description ??
-      book.bookDescription ??
-      "No description available.";
+      const author =
+        book.author ??
+        book.bookAuthor ??
+        "Unknown Author";
 
 
-    const questionCount =
-      book.questions ??
-      book.questionCount ??
-      book.totalQuestions ??
-      book.numberOfQuestions ??
-      "—";
+      const description =
+        book.description ??
+        book.bookDescription ??
+        "No description available.";
 
 
-    const duration =
-      book.duration ??
-      book.durationMinutes ??
-      book.examDuration ??
-      "—";
+      const questionCount =
+        book.questions ??
+        book.questionCount ??
+        book.totalQuestions ??
+        book.numberOfQuestions ??
+        "—";
 
 
-    const card =
-      document.createElement("article");
+      const duration =
+        book.duration ??
+        book.durationMinutes ??
+        book.examDuration ??
+        "—";
 
 
-    card.className =
-      "book-item";
+      const card =
+        document.createElement(
+          "article"
+        );
 
 
-    card.innerHTML = `
-      <h3>${escapeHtml(title)}</h3>
-
-      <p class="book-author">
-        ${escapeHtml(author)}
-      </p>
-
-      <p>
-        ${escapeHtml(description)}
-      </p>
-
-      <div class="book-meta">
-
-        <span class="book-meta-item">
-          ${escapeHtml(String(questionCount))} Questions
-        </span>
-
-        <span class="book-meta-item">
-          ${escapeHtml(String(duration))} Minutes
-        </span>
-
-      </div>
-
-      <button
-        type="button"
-        class="primary-btn"
-        data-book-id="${escapeHtml(String(bookId))}"
-      >
-        View Book
-      </button>
-    `;
+      card.className =
+        "book-item";
 
 
-    const button =
-      card.querySelector("button");
+      card.innerHTML = `
+        <h3>${escapeHtml(title)}</h3>
+
+        <p class="book-author">
+          ${escapeHtml(author)}
+        </p>
+
+        <p>
+          ${escapeHtml(description)}
+        </p>
+
+        <div class="book-meta">
+
+          <span class="book-meta-item">
+            ${escapeHtml(String(questionCount))} Questions
+          </span>
+
+          <span class="book-meta-item">
+            ${escapeHtml(String(duration))} Minutes
+          </span>
+
+        </div>
+
+        <button
+          type="button"
+          class="primary-btn"
+          data-book-id="${escapeHtml(String(bookId))}"
+        >
+          View Book
+        </button>
+      `;
 
 
-    if (button) {
+      const button =
+        card.querySelector(
+          "button"
+        );
 
-      button.addEventListener(
-        "click",
-        function() {
 
-          openBook(bookId);
+      if (button) {
 
-        }
+        button.addEventListener(
+          "click",
+          function() {
+
+            openBook(
+              bookId
+            );
+
+          }
+        );
+      }
+
+
+      container.appendChild(
+        card
       );
+
     }
-
-
-    container.appendChild(card);
-
-  });
+  );
 }
 
 
@@ -584,38 +681,42 @@ function renderBooks() {
    OPEN BOOK
    ========================================================= */
 
-async function openBook(bookId) {
+async function openBook(
+  bookId
+) {
 
   try {
 
-    showLoading("Loading book information...");
+    showLoading(
+      "Loading book information..."
+    );
 
 
-    /*
-     * First look in the already-loaded books.
-     */
     let book =
-      books.find(function(item) {
+      books.find(
+        function(item) {
 
-        return String(
-          item.bookId ??
-          item.id ??
-          item.ID
-        ) === String(bookId);
+          return String(
+            item.bookId ??
+            item.id ??
+            item.ID
+          ) ===
+          String(
+            bookId
+          );
 
-      });
+        }
+      );
 
 
-    /*
-     * If it isn't available locally, ask the backend.
-     */
     if (!book) {
 
       const result =
         await api(
           "getBook",
           {
-            bookId: bookId
+            bookId:
+              bookId
           }
         );
 
@@ -641,7 +742,9 @@ async function openBook(bookId) {
     renderBookDetails();
 
 
-    showScreen("bookScreen");
+    showScreen(
+      "bookScreen"
+    );
 
 
   } catch (error) {
@@ -672,6 +775,7 @@ async function openBook(bookId) {
 function renderBookDetails() {
 
   if (!selectedBook) {
+
     return;
   }
 
@@ -753,7 +857,11 @@ async function startExam() {
       "Your student session has expired. Please login again."
     );
 
-    showScreen("loginScreen");
+
+    showScreen(
+      "loginScreen"
+    );
+
 
     return;
   }
@@ -765,11 +873,13 @@ async function startExam() {
       "Please select a book first."
     );
 
+
     return;
   }
 
 
   if (examActive) {
+
     return;
   }
 
@@ -781,19 +891,16 @@ async function startExam() {
     );
 
 
-    /*
-     * Ask the backend to create/validate
-     * the examination attempt.
-     *
-     * IMPORTANT:
-     *
-     * The backend must enforce:
-     *
-     * 1. One attempt per student/book.
-     * 2. No duplicate active attempt.
-     * 3. Admin reopening when required.
-     * 4. Server-side expiry.
-     */
+    const studentId =
+      currentStudent.studentId ??
+      currentStudent.id ??
+      currentStudent.ID;
+
+
+    const bookId =
+      selectedBook.bookId ??
+      selectedBook.id ??
+      selectedBook.ID;
 
 
     const attemptResult =
@@ -801,14 +908,10 @@ async function startExam() {
         "startAttempt",
         {
           studentId:
-            currentStudent.studentId ??
-            currentStudent.id ??
-            currentStudent.ID,
+            studentId,
 
           bookId:
-            selectedBook.bookId ??
-            selectedBook.id ??
-            selectedBook.ID
+            bookId
         }
       );
 
@@ -821,138 +924,11 @@ async function startExam() {
     }
 
 
-    /*
-     * Accept several possible backend field names.
-     */
-    attemptId =
-      attemptResult.attemptId ??
-      attemptResult.id ??
-      attemptResult.attemptID;
-
-
-    if (!attemptId) {
-
-      throw new Error(
-        "The examination attempt ID was not returned."
-      );
-    }
-
-
-    /*
-     * Get the questions separately.
-     */
-    const questionResult =
-      await api(
-        "getQuestions",
-        {
-          bookId:
-            selectedBook.bookId ??
-            selectedBook.id ??
-            selectedBook.ID
-        }
-      );
-
-
-    if (Array.isArray(questionResult)) {
-
-      questions =
-        questionResult;
-
-    } else if (
-      questionResult &&
-      Array.isArray(questionResult.questions)
-    ) {
-
-      questions =
-        questionResult.questions;
-
-    } else {
-
-      questions = [];
-    }
-
-
-    if (!questions.length) {
-
-      throw new Error(
-        "No examination questions were found."
-      );
-    }
-
-
-    /*
-     * Reset examination state.
-     */
-    currentQuestion = 0;
-
-    answers = {};
-
-    reviewed = {};
-
-    examSubmitting = false;
-
-    examTerminated = false;
-
-    visibilityWarningShown = false;
-
-    examActive = true;
-
-
-    /*
-     * Determine duration.
-     *
-     * Priority:
-     *
-     * 1. Server attempt duration
-     * 2. Selected book duration
-     * 3. Default 60 minutes
-     */
-    const duration =
-      Number(
-        attemptResult.duration ??
-        attemptResult.durationMinutes ??
-        selectedBook.duration ??
-        selectedBook.durationMinutes ??
-        selectedBook.examDuration ??
-        60
-      );
-
-
-    remainingSeconds =
-      Math.max(
-        1,
-        Math.floor(duration * 60)
-      );
-
-
-    /*
-     * Enter examination mode.
-     */
-    document.body.classList.add(
-      "exam-mode"
+    await initializeExamFromAttempt(
+      attemptResult,
+      selectedBook,
+      false
     );
-
-
-    renderQuestionNavigator();
-
-    renderQuestion();
-
-    updateTimerDisplay();
-
-    startTimer();
-
-    setupExamSecurity();
-
-    showScreen("examScreen");
-
-
-    /*
-     * Try to enter fullscreen.
-     *
-     * This is a deterrent, not an absolute security
-     * mechanism. The browser/user can refuse it.
-     */
-    requestFullscreen();
 
 
   } catch (error) {
@@ -977,6 +953,651 @@ async function startExam() {
 
 
 /* =========================================================
+   EXAM RECOVERY
+   ========================================================= */
+
+/**
+ * Checks whether the logged-in student already has
+ * an active attempt.
+ *
+ * Returns true when an exam was successfully resumed.
+ */
+async function attemptExamRecovery() {
+
+  if (!currentStudent) {
+
+    return false;
+  }
+
+
+  const studentId =
+    currentStudent.studentId ??
+    currentStudent.id ??
+    currentStudent.ID;
+
+
+  if (!studentId) {
+
+    return false;
+  }
+
+
+  try {
+
+    showLoading(
+      "Checking for an active examination..."
+    );
+
+
+    /*
+     * We don't know which book is active yet.
+     *
+     * Therefore check every currently available book.
+     */
+    for (
+      const book of books
+    ) {
+
+      const bookId =
+        book.bookId ??
+        book.id ??
+        book.ID;
+
+
+      if (!bookId) {
+
+        continue;
+      }
+
+
+      const activeResult =
+        await api(
+          "getActiveAttempt",
+          {
+            studentId:
+              studentId,
+
+            bookId:
+              bookId
+          }
+        );
+
+
+      if (
+        activeResult &&
+        activeResult.hasActiveAttempt
+      ) {
+
+        selectedBook =
+          book;
+
+
+        await initializeExamFromAttempt(
+          activeResult,
+          selectedBook,
+          true
+        );
+
+
+        return true;
+      }
+    }
+
+
+    return false;
+
+
+  } catch (error) {
+
+    console.error(
+      "EXAM RECOVERY ERROR:",
+      error
+    );
+
+
+    /*
+     * Recovery failure should not automatically terminate
+     * the student's account/session.
+     *
+     * They can still use the normal dashboard.
+     */
+    return false;
+
+
+  } finally {
+
+    hideLoading();
+  }
+}
+
+
+/* =========================================================
+   INITIALIZE EXAM FROM ATTEMPT
+   ========================================================= */
+
+/**
+ * Builds the exam UI from a server-authoritative attempt.
+ *
+ * Used for BOTH:
+ *
+ * 1. Newly started exams.
+ * 2. Recovered exams after refresh.
+ */
+async function initializeExamFromAttempt(
+  attemptResult,
+  book,
+  isRecovery = false
+) {
+
+  if (!attemptResult) {
+
+    throw new Error(
+      "Invalid examination attempt."
+    );
+  }
+
+
+  const recoveredAttemptId =
+    attemptResult.attemptId ??
+    attemptResult.id ??
+    attemptResult.attemptID;
+
+
+  if (!recoveredAttemptId) {
+
+    throw new Error(
+      "The examination attempt ID was not returned."
+    );
+  }
+
+
+  attemptId =
+    String(
+      recoveredAttemptId
+    );
+
+
+  selectedBook =
+    book;
+
+
+  /*
+   * Load the questions again.
+   *
+   * Correct answers are never returned by getQuestions().
+   */
+  const bookId =
+    selectedBook.bookId ??
+    selectedBook.id ??
+    selectedBook.ID;
+
+
+  const questionResult =
+    await api(
+      "getQuestions",
+      {
+        bookId:
+          bookId
+      }
+    );
+
+
+  if (
+    Array.isArray(
+      questionResult
+    )
+  ) {
+
+    questions =
+      questionResult;
+
+  } else if (
+    questionResult &&
+    Array.isArray(
+      questionResult.questions
+    )
+  ) {
+
+    questions =
+      questionResult.questions;
+
+  } else {
+
+    questions = [];
+  }
+
+
+  if (!questions.length) {
+
+    throw new Error(
+      "No examination questions were found."
+    );
+  }
+
+
+  /*
+   * Reset temporary state for a NEW exam.
+   *
+   * For a RECOVERED exam, restore the state from
+   * sessionStorage if it belongs to this same attempt.
+   */
+  if (isRecovery) {
+
+    restoreExamSession(
+      attemptId
+    );
+
+  } else {
+
+    currentQuestion =
+      0;
+
+    answers =
+      {};
+
+    reviewed =
+      {};
+
+    clearExamSession();
+  }
+
+
+  /*
+   * Server-authoritative expiration.
+   *
+   * We calculate remaining time from ExpiresAt rather
+   * than trusting a browser timer.
+   */
+  const expiresAt =
+    attemptResult.expiresAt
+      ? new Date(
+          attemptResult.expiresAt
+        )
+      : null;
+
+
+  if (
+    !expiresAt ||
+    isNaN(
+      expiresAt.getTime()
+    )
+  ) {
+
+    /*
+     * Fallback for safety.
+     */
+    const duration =
+      Number(
+        attemptResult.duration ??
+        attemptResult.durationMinutes ??
+        selectedBook.duration ??
+        selectedBook.durationMinutes ??
+        selectedBook.examDuration ??
+        60
+      );
+
+
+    remainingSeconds =
+      Math.max(
+        1,
+        Math.floor(
+          duration * 60
+        )
+      );
+
+  } else {
+
+    remainingSeconds =
+      Math.max(
+        0,
+        Math.floor(
+          (
+            expiresAt.getTime() -
+            Date.now()
+          ) / 1000
+        )
+      );
+  }
+
+
+  if (
+    remainingSeconds <= 0
+  ) {
+
+    throw new Error(
+      "This examination attempt has expired."
+    );
+  }
+
+
+  /*
+   * Clamp current question.
+   */
+  if (
+    currentQuestion < 0 ||
+    currentQuestion >= questions.length
+  ) {
+
+    currentQuestion =
+      0;
+  }
+
+
+  examSubmitting =
+    false;
+
+
+  examTerminated =
+    false;
+
+
+  visibilityWarningShown =
+    false;
+
+
+  examActive =
+    true;
+
+
+  document.body.classList.add(
+    "exam-mode"
+  );
+
+
+  renderQuestionNavigator();
+
+  renderQuestion();
+
+  updateTimerDisplay();
+
+  startTimer();
+
+  setupExamSecurity();
+
+  showScreen(
+    "examScreen"
+  );
+
+
+  /*
+   * Try fullscreen.
+   */
+  requestFullscreen();
+
+
+  /*
+   * Tell the student what happened after a refresh.
+   */
+  if (isRecovery) {
+
+    showTemporarySecurityMessage(
+      "Your active examination has been restored."
+    );
+  }
+}
+
+
+/* =========================================================
+   EXAM SESSION STORAGE
+   ========================================================= */
+
+/**
+ * We store ONLY temporary exam state:
+ *
+ * - Attempt ID
+ * - Book ID
+ * - Current question
+ * - Answers
+ * - Reviewed questions
+ *
+ * We NEVER store:
+ *
+ * - PIN
+ * - Correct answers
+ * - Score
+ * - Server-side examination result
+ */
+function getExamStorageKey(
+  id = attemptId
+) {
+
+  if (!id) {
+
+    return null;
+  }
+
+
+  return (
+    "brp_exam_" +
+    String(id)
+  );
+}
+
+
+function saveExamSession() {
+
+  const key =
+    getExamStorageKey();
+
+
+  if (!key) {
+
+    return;
+  }
+
+
+  try {
+
+    const state = {
+
+      attemptId:
+        attemptId,
+
+      bookId:
+        selectedBook
+          ? String(
+              selectedBook.bookId ??
+              selectedBook.id ??
+              selectedBook.ID ??
+              ""
+            )
+          : "",
+
+      currentQuestion:
+        currentQuestion,
+
+      answers:
+        answers,
+
+      reviewed:
+        reviewed
+    };
+
+
+    sessionStorage.setItem(
+      key,
+      JSON.stringify(
+        state
+      )
+    );
+
+  } catch (error) {
+
+    console.warn(
+      "Unable to save exam session.",
+      error
+    );
+  }
+}
+
+
+function restoreExamSession(
+  expectedAttemptId
+) {
+
+  currentQuestion =
+    0;
+
+  answers =
+    {};
+
+  reviewed =
+    {};
+
+
+  const key =
+    getExamStorageKey(
+      expectedAttemptId
+    );
+
+
+  if (!key) {
+
+    return;
+  }
+
+
+  try {
+
+    const saved =
+      sessionStorage.getItem(
+        key
+      );
+
+
+    if (!saved) {
+
+      return;
+    }
+
+
+    const state =
+      JSON.parse(
+        saved
+      );
+
+
+    if (!state) {
+
+      return;
+    }
+
+
+    if (
+      String(
+        state.attemptId
+      ) !==
+      String(
+        expectedAttemptId
+      )
+    ) {
+
+      return;
+    }
+
+
+    /*
+     * Verify the saved book matches the active book.
+     */
+    const activeBookId =
+      selectedBook
+        ? String(
+            selectedBook.bookId ??
+            selectedBook.id ??
+            selectedBook.ID ??
+            ""
+          )
+        : "";
+
+
+    if (
+      state.bookId &&
+      activeBookId &&
+      String(
+        state.bookId
+      ) !== activeBookId
+    ) {
+
+      return;
+    }
+
+
+    if (
+      Number.isInteger(
+        state.currentQuestion
+      )
+    ) {
+
+      currentQuestion =
+        state.currentQuestion;
+    }
+
+
+    if (
+      state.answers &&
+      typeof state.answers ===
+        "object"
+    ) {
+
+      answers =
+        state.answers;
+    }
+
+
+    if (
+      state.reviewed &&
+      typeof state.reviewed ===
+        "object"
+    ) {
+
+      reviewed =
+        state.reviewed;
+    }
+
+
+  } catch (error) {
+
+    console.warn(
+      "Unable to restore exam session.",
+      error
+    );
+  }
+}
+
+
+function clearExamSession(
+  id = attemptId
+) {
+
+  const key =
+    getExamStorageKey(
+      id
+    );
+
+
+  if (!key) {
+
+    return;
+  }
+
+
+  try {
+
+    sessionStorage.removeItem(
+      key
+    );
+
+  } catch (error) {
+
+    console.warn(
+      "Unable to clear exam session.",
+      error
+    );
+  }
+}
+
+
+/* =========================================================
    TIMER
    ========================================================= */
 
@@ -993,6 +1614,7 @@ function startTimer() {
       function() {
 
         if (!examActive) {
+
           return;
         }
 
@@ -1003,7 +1625,16 @@ function startTimer() {
         updateTimerDisplay();
 
 
-        if (remainingSeconds <= 0) {
+        /*
+         * Keep the current answer state available
+         * if the browser is refreshed.
+         */
+        saveExamSession();
+
+
+        if (
+          remainingSeconds <= 0
+        ) {
 
           stopTimer();
 
@@ -1024,7 +1655,9 @@ function stopTimer() {
       timerInterval
     );
 
-    timerInterval = null;
+
+    timerInterval =
+      null;
   }
 }
 
@@ -1032,6 +1665,7 @@ function stopTimer() {
 function updateTimer() {
 
   if (!examActive) {
+
     return;
   }
 
@@ -1043,10 +1677,13 @@ function updateTimer() {
 function updateTimerDisplay() {
 
   const timer =
-    getElement("timer");
+    getElement(
+      "timer"
+    );
 
 
   if (!timer) {
+
     return;
   }
 
@@ -1060,12 +1697,14 @@ function updateTimerDisplay() {
 
   const minutes =
     Math.floor(
-      totalSeconds / 60
+      totalSeconds /
+      60
     );
 
 
   const seconds =
-    totalSeconds % 60;
+    totalSeconds %
+    60;
 
 
   timer.textContent =
@@ -1078,13 +1717,17 @@ function updateTimerDisplay() {
   );
 
 
-  if (totalSeconds <= 300) {
+  if (
+    totalSeconds <= 300
+  ) {
 
     timer.classList.add(
       "danger"
     );
 
-  } else if (totalSeconds <= 600) {
+  } else if (
+    totalSeconds <= 600
+  ) {
 
     timer.classList.add(
       "warning"
@@ -1103,6 +1746,7 @@ async function handleTimeExpired() {
     !examActive ||
     examSubmitting
   ) {
+
     return;
   }
 
@@ -1128,12 +1772,15 @@ function renderQuestion() {
     !questions.length ||
     !questions[currentQuestion]
   ) {
+
     return;
   }
 
 
   const question =
-    questions[currentQuestion];
+    questions[
+      currentQuestion
+    ];
 
 
   const questionNumber =
@@ -1165,6 +1812,12 @@ function renderQuestion() {
   renderQuestionNavigator();
 
   updateReviewButton();
+
+
+  /*
+   * Save navigation position.
+   */
+  saveExamSession();
 }
 
 
@@ -1172,73 +1825,76 @@ function renderQuestion() {
    RENDER OPTIONS
    ========================================================= */
 
-function renderOptions(question) {
+function renderOptions(
+  question
+) {
 
   const container =
-    getElement("optionsContainer");
+    getElement(
+      "optionsContainer"
+    );
 
 
   if (!container) {
+
     return;
   }
 
 
-  container.innerHTML = "";
+  container.innerHTML =
+    "";
 
 
-  /*
-   * The backend may return:
-   *
-   * options: [...]
-   *
-   * or:
-   *
-   * choices: [...]
-   */
   let options =
     question.options ??
     question.choices ??
     [];
 
 
-  /*
-   * Support object-form options:
-   *
-   * {
-   *   A: "Option A",
-   *   B: "Option B",
-   *   C: "Option C",
-   *   D: "Option D"
-   * }
-   */
   if (
-    !Array.isArray(options) &&
-    typeof options === "object" &&
+    !Array.isArray(
+      options
+    ) &&
+    typeof options ===
+      "object" &&
     options !== null
   ) {
 
     options =
-      Object.entries(options).map(
-        function([letter, text]) {
+      Object.entries(
+        options
+      ).map(
+        function([
+          letter,
+          text
+        ]) {
 
           return {
-            letter: letter,
-            text: text
-          };
+            letter:
+              letter,
 
+            text:
+              text
+          };
         }
       );
   }
 
 
-  if (!Array.isArray(options)) {
+  if (
+    !Array.isArray(
+      options
+    )
+  ) {
 
     options = [];
   }
 
 
   const questionId =
-    getQuestionId(question);
+    getQuestionId(
+      question
+    );
 
 
   const questionType =
@@ -1250,7 +1906,10 @@ function renderOptions(question) {
 
 
   options.forEach(
-    function(option, index) {
+    function(
+      option,
+      index
+    ) {
 
       let letter;
 
@@ -1258,13 +1917,15 @@ function renderOptions(question) {
 
 
       if (
-        typeof option === "string"
+        typeof option ===
+        "string"
       ) {
 
         letter =
           String.fromCharCode(
             65 + index
           );
+
 
         text =
           option;
@@ -1279,6 +1940,7 @@ function renderOptions(question) {
             65 + index
           );
 
+
         text =
           option.text ??
           option.label ??
@@ -1289,7 +1951,9 @@ function renderOptions(question) {
 
 
       letter =
-        String(letter)
+        String(
+          letter
+        )
           .trim()
           .toUpperCase();
 
@@ -1299,7 +1963,9 @@ function renderOptions(question) {
 
 
       const wrapper =
-        document.createElement("div");
+        document.createElement(
+          "div"
+        );
 
 
       wrapper.className =
@@ -1307,7 +1973,9 @@ function renderOptions(question) {
 
 
       const input =
-        document.createElement("input");
+        document.createElement(
+          "input"
+        );
 
 
       input.type =
@@ -1338,7 +2006,9 @@ function renderOptions(question) {
 
 
       const optionLetter =
-        document.createElement("span");
+        document.createElement(
+          "span"
+        );
 
 
       optionLetter.className =
@@ -1350,7 +2020,9 @@ function renderOptions(question) {
 
 
       const label =
-        document.createElement("label");
+        document.createElement(
+          "label"
+        );
 
 
       label.htmlFor =
@@ -1376,7 +2048,9 @@ function renderOptions(question) {
       );
 
 
-      if (input.checked) {
+      if (
+        input.checked
+      ) {
 
         wrapper.classList.add(
           "selected"
@@ -1402,6 +2076,8 @@ function renderOptions(question) {
 
 
           renderQuestionNavigator();
+
+          saveExamSession();
         }
       );
 
@@ -1419,7 +2095,9 @@ function renderOptions(question) {
    GET QUESTION ID
    ========================================================= */
 
-function getQuestionId(question) {
+function getQuestionId(
+  question
+) {
 
   return String(
     question.questionId ??
@@ -1442,7 +2120,9 @@ function saveAnswer(
 ) {
 
   const questionId =
-    getQuestionId(question);
+    getQuestionId(
+      question
+    );
 
 
   const questionType =
@@ -1454,7 +2134,7 @@ function saveAnswer(
 
 
   /*
-   * Multiple-choice / radio
+   * Multiple choice / radio.
    */
   if (
     questionType !== "cb" &&
@@ -1464,41 +2144,55 @@ function saveAnswer(
 
     if (checked) {
 
-      answers[questionId] =
+      answers[
+        questionId
+      ] =
         letter;
 
     } else if (
-      answers[questionId] === letter
+      answers[
+        questionId
+      ] === letter
     ) {
 
-      delete answers[questionId];
+      delete answers[
+        questionId
+      ];
     }
 
+
+    saveExamSession();
 
     return;
   }
 
 
   /*
-   * Checkbox / multiple-answer question
+   * Checkbox / multiple answer.
    */
   let currentAnswers =
-    answers[questionId];
+    answers[
+      questionId
+    ];
 
 
-  if (!Array.isArray(currentAnswers)) {
+  if (
+    !Array.isArray(
+      currentAnswers
+    )
+  ) {
 
     currentAnswers =
       currentAnswers
         ? String(
             currentAnswers
           )
-          .split(",")
-          .map(
-            value =>
-              value.trim()
-          )
-          .filter(Boolean)
+            .split(",")
+            .map(
+              value =>
+                value.trim()
+            )
+            .filter(Boolean)
         : [];
   }
 
@@ -1529,15 +2223,24 @@ function saveAnswer(
   currentAnswers.sort();
 
 
-  if (currentAnswers.length) {
+  if (
+    currentAnswers.length
+  ) {
 
-    answers[questionId] =
+    answers[
+      questionId
+    ] =
       currentAnswers;
 
   } else {
 
-    delete answers[questionId];
+    delete answers[
+      questionId
+    ];
   }
+
+
+  saveExamSession();
 }
 
 
@@ -1551,13 +2254,21 @@ function hasAnswer(
 ) {
 
   const answer =
-    answers[questionId];
+    answers[
+      questionId
+    ];
 
 
-  if (Array.isArray(answer)) {
+  if (
+    Array.isArray(
+      answer
+    )
+  ) {
 
     return answer.includes(
-      String(letter).toUpperCase()
+      String(
+        letter
+      ).toUpperCase()
     );
   }
 
@@ -1565,7 +2276,9 @@ function hasAnswer(
   return String(
     answer ?? ""
   ).toUpperCase() ===
-    String(letter).toUpperCase();
+    String(
+      letter
+    ).toUpperCase();
 }
 
 
@@ -1588,11 +2301,8 @@ function nextQuestion() {
 
   } else {
 
-    /*
-     * At the final question we don't automatically
-     * submit. The student must explicitly submit.
-     */
     renderQuestion();
+
 
     alert(
       "You are on the final question. Review your answers and submit the examination when you are ready."
@@ -1624,12 +2334,15 @@ function previousQuestion() {
    GO TO QUESTION
    ========================================================= */
 
-function goToQuestion(index) {
+function goToQuestion(
+  index
+) {
 
   if (
     index < 0 ||
     index >= questions.length
   ) {
+
     return;
   }
 
@@ -1664,10 +2377,15 @@ function scrollExamToTop() {
 function updateNavigationButtons() {
 
   const previousButton =
-    getElement("previousButton");
+    getElement(
+      "previousButton"
+    );
+
 
   const nextButton =
-    getElement("nextButton");
+    getElement(
+      "nextButton"
+    );
 
 
   if (previousButton) {
@@ -1692,24 +2410,37 @@ function updateNavigationButtons() {
 
 function toggleReview() {
 
-  if (!questions[currentQuestion]) {
+  if (
+    !questions[
+      currentQuestion
+    ]
+  ) {
+
     return;
   }
 
 
   const questionId =
     getQuestionId(
-      questions[currentQuestion]
+      questions[
+        currentQuestion
+      ]
     );
 
 
-  reviewed[questionId] =
-    !reviewed[questionId];
+  reviewed[
+    questionId
+  ] =
+    !reviewed[
+      questionId
+    ];
 
 
   updateReviewButton();
 
   renderQuestionNavigator();
+
+  saveExamSession();
 }
 
 
@@ -1720,18 +2451,26 @@ function toggleReview() {
 function updateReviewButton() {
 
   const button =
-    getElement("reviewButton");
+    getElement(
+      "reviewButton"
+    );
 
 
   if (!button) {
+
     return;
   }
 
 
-  if (!questions[currentQuestion]) {
+  if (
+    !questions[
+      currentQuestion
+    ]
+  ) {
 
     button.textContent =
       "☆ Mark for Review";
+
 
     return;
   }
@@ -1739,14 +2478,21 @@ function updateReviewButton() {
 
   const questionId =
     getQuestionId(
-      questions[currentQuestion]
+      questions[
+        currentQuestion
+      ]
     );
 
 
-  if (reviewed[questionId]) {
+  if (
+    reviewed[
+      questionId
+    ]
+  ) {
 
     button.textContent =
       "★ Marked for Review";
+
 
     button.classList.add(
       "active"
@@ -1756,6 +2502,7 @@ function updateReviewButton() {
 
     button.textContent =
       "☆ Mark for Review";
+
 
     button.classList.remove(
       "active"
@@ -1777,15 +2524,20 @@ function renderQuestionNavigator() {
 
 
   if (!navigator) {
+
     return;
   }
 
 
-  navigator.innerHTML = "";
+  navigator.innerHTML =
+    "";
 
 
   questions.forEach(
-    function(question, index) {
+    function(
+      question,
+      index
+    ) {
 
       const questionId =
         getQuestionId(
@@ -1812,16 +2564,22 @@ function renderQuestionNavigator() {
 
 
       const answer =
-        answers[questionId];
+        answers[
+          questionId
+        ];
 
 
       const hasAnyAnswer =
-        Array.isArray(answer)
+        Array.isArray(
+          answer
+        )
           ? answer.length > 0
           : Boolean(answer);
 
 
-      if (hasAnyAnswer) {
+      if (
+        hasAnyAnswer
+      ) {
 
         button.classList.add(
           "answered"
@@ -1830,7 +2588,9 @@ function renderQuestionNavigator() {
 
 
       if (
-        reviewed[questionId]
+        reviewed[
+          questionId
+        ]
       ) {
 
         button.classList.add(
@@ -1881,6 +2641,7 @@ function confirmSubmit() {
     !examActive ||
     examSubmitting
   ) {
+
     return;
   }
 
@@ -1938,11 +2699,6 @@ function closeConfirmModal() {
    SUBMIT EXAM
    ========================================================= */
 
-/**
- * Submit examination.
- *
- * @param {boolean} automatic
- */
 async function submitExam(
   automatic = false
 ) {
@@ -1951,11 +2707,13 @@ async function submitExam(
     examSubmitting ||
     !attemptId
   ) {
+
     return;
   }
 
 
-  examSubmitting = true;
+  examSubmitting =
+    true;
 
 
   closeConfirmModal();
@@ -1973,37 +2731,8 @@ async function submitExam(
     );
 
 
-    /*
-     * Convert the internal answers object into
-     * a clean server-friendly format.
-     *
-     * Example:
-     *
-     * {
-     *   "1": "A",
-     *   "2": ["B", "D"],
-     *   "3": "C"
-     * }
-     */
     const formattedAnswers =
       formatAnswersForSubmission();
-
-
-    /*
-     * IMPORTANT:
-     *
-     * The frontend does NOT calculate the score.
-     *
-     * The server must:
-     *
-     * - retrieve the correct answers
-     * - validate the attempt
-     * - calculate the score
-     * - reject duplicate submissions
-     * - check expiry
-     * - save answers
-     * - mark the attempt as submitted
-     */
 
 
     const result =
@@ -2019,30 +2748,38 @@ async function submitExam(
       );
 
 
-    /*
-     * Examination is now finished.
-     */
-    examActive = false;
+    examActive =
+      false;
 
-    examSubmitting = false;
+
+    examSubmitting =
+      false;
+
 
     document.body.classList.remove(
       "exam-mode"
     );
 
 
-    attemptId = null;
+    removeExamSecurityListeners();
 
 
-    /*
-     * Exit fullscreen if possible.
-     */
+    const completedAttemptId =
+      attemptId;
+
+
+    attemptId =
+      null;
+
+
+    clearExamSession(
+      completedAttemptId
+    );
+
+
     exitFullscreen();
 
 
-    /*
-     * Display result.
-     */
     displayResult(
       result
     );
@@ -2061,14 +2798,10 @@ async function submitExam(
     );
 
 
-    examSubmitting = false;
+    examSubmitting =
+      false;
 
 
-    /*
-     * If submission failed because the attempt
-     * has already been submitted or terminated,
-     * don't simply allow the student to continue.
-     */
     const message =
       error.message ||
       "Unable to submit your examination.";
@@ -2092,23 +2825,36 @@ async function submitExam(
 
 function formatAnswersForSubmission() {
 
-  const formatted = {};
+  const formatted =
+    {};
 
 
-  Object.keys(answers).forEach(
+  Object.keys(
+    answers
+  ).forEach(
     function(questionId) {
 
       const answer =
-        answers[questionId];
+        answers[
+          questionId
+        ];
 
 
-      if (Array.isArray(answer)) {
+      if (
+        Array.isArray(
+          answer
+        )
+      ) {
 
-        formatted[questionId] =
+        formatted[
+          questionId
+        ] =
           answer
             .map(
               value =>
-                String(value)
+                String(
+                  value
+                )
                   .trim()
                   .toUpperCase()
             )
@@ -2118,8 +2864,12 @@ function formatAnswersForSubmission() {
 
       } else {
 
-        formatted[questionId] =
-          String(answer)
+        formatted[
+          questionId
+        ] =
+          String(
+            answer
+          )
             .trim()
             .toUpperCase();
       }
@@ -2194,7 +2944,8 @@ function displayResult(
 
     } else {
 
-      percentage = 0;
+      percentage =
+        0;
     }
   }
 
@@ -2207,7 +2958,9 @@ function displayResult(
 
   setText(
     "resultPercentage",
-    `${Number(percentage).toFixed(1)}%`
+    `${Number(
+      percentage
+    ).toFixed(1)}%`
   );
 }
 
@@ -2263,21 +3016,19 @@ function showScreen(
 
 async function showDashboard() {
 
-  /*
-   * Do not allow the student to navigate away from
-   * an active examination using the dashboard.
-   */
   if (examActive) {
 
     alert(
       "You cannot return to the dashboard while an examination is in progress."
     );
 
+
     return;
   }
 
 
-  selectedBook = null;
+  selectedBook =
+    null;
 
 
   showScreen(
@@ -2285,9 +3036,6 @@ async function showDashboard() {
   );
 
 
-  /*
-   * Refresh the book list.
-   */
   if (currentStudent) {
 
     try {
@@ -2316,23 +3064,37 @@ function logout() {
       "You cannot logout while an examination is in progress."
     );
 
+
     return;
   }
 
 
-  currentStudent = null;
+  currentStudent =
+    null;
 
-  books = [];
 
-  selectedBook = null;
+  books =
+    [];
 
-  questions = [];
 
-  answers = {};
+  selectedBook =
+    null;
 
-  reviewed = {};
 
-  attemptId = null;
+  questions =
+    [];
+
+
+  answers =
+    {};
+
+
+  reviewed =
+    {};
+
+
+  attemptId =
+    null;
 
 
   stopTimer();
@@ -2372,17 +3134,23 @@ function logout() {
 
 
   if (studentId) {
-    studentId.value = "";
+
+    studentId.value =
+      "";
   }
 
 
   if (studentPin) {
-    studentPin.value = "";
+
+    studentPin.value =
+      "";
   }
 
 
   if (loginMessage) {
-    loginMessage.textContent = "";
+
+    loginMessage.textContent =
+      "";
   }
 
 
@@ -2396,7 +3164,7 @@ function logout() {
    RESTORE LOGIN SESSION
    ========================================================= */
 
-function restoreStudentSession() {
+async function restoreStudentSession() {
 
   try {
 
@@ -2407,6 +3175,7 @@ function restoreStudentSession() {
 
 
     if (!saved) {
+
       return;
     }
 
@@ -2418,14 +3187,11 @@ function restoreStudentSession() {
 
 
     if (!student) {
+
       return;
     }
 
 
-    /*
-     * Restore only the student identity.
-     * We do not store PINs.
-     */
     currentStudent =
       student;
 
@@ -2439,32 +3205,24 @@ function restoreStudentSession() {
 
 
     /*
-     * The student still needs to return to
-     * the dashboard. Books will be requested
-     * from the backend.
+     * Load books first.
+     *
+     * Then check for an active attempt.
      */
-    loadBooks()
-      .then(
-        function() {
+    await loadBooks();
 
-          showScreen(
-            "dashboardScreen"
-          );
 
-        }
-      )
-      .catch(
-        function(error) {
+    const resumed =
+      await attemptExamRecovery();
 
-          console.error(
-            "SESSION RESTORE ERROR:",
-            error
-          );
 
-          logout();
+    if (!resumed) {
 
-        }
+      showScreen(
+        "dashboardScreen"
       );
+    }
+
 
   } catch (error) {
 
@@ -2474,14 +3232,24 @@ function restoreStudentSession() {
     );
 
 
+    /*
+     * Do NOT automatically terminate an active attempt
+     * merely because recovery encountered a temporary
+     * network problem.
+     *
+     * Keep the login session so the student can retry.
+     */
     try {
 
-      sessionStorage.removeItem(
-        "brp_student"
+      showScreen(
+        "dashboardScreen"
       );
 
-    } catch (storageError) {
-      // Ignore.
+    } catch (screenError) {
+
+      console.error(
+        screenError
+      );
     }
   }
 }
@@ -2491,39 +3259,17 @@ function restoreStudentSession() {
    EXAM SECURITY
    ========================================================= */
 
-/*
- * Browser-level examination protections.
- *
- * These are NOT absolute security controls.
- *
- * A determined student may still:
- *
- * - use another device
- * - use browser developer tools
- * - use virtualization
- * - photograph the screen
- * - bypass JavaScript
- *
- * Therefore the backend remains authoritative.
- */
-
 function setupExamSecurity() {
 
   removeExamSecurityListeners();
 
 
-  /*
-   * Prevent context menu.
-   */
   document.addEventListener(
     "contextmenu",
     preventExamContextMenu
   );
 
 
-  /*
-   * Prevent selecting/copying text.
-   */
   document.addEventListener(
     "copy",
     preventExamCopy
@@ -2542,38 +3288,24 @@ function setupExamSecurity() {
   );
 
 
-  /*
-   * Keyboard restrictions.
-   */
   document.addEventListener(
     "keydown",
     preventExamKeyboard
   );
 
 
-  /*
-   * Detect when the browser tab becomes hidden.
-   */
   document.addEventListener(
     "visibilitychange",
     handleVisibilityChange
   );
 
 
-  /*
-   * Detect browser window losing focus.
-   */
   window.addEventListener(
     "blur",
     handleWindowBlur
   );
 
 
-  /*
-   * Warn when attempting to leave/reload.
-   *
-   * This does NOT replace server-side protection.
-   */
   window.addEventListener(
     "beforeunload",
     handleBeforeUnload
@@ -2640,7 +3372,9 @@ function removeExamSecurityListeners() {
    PREVENT CONTEXT MENU
    ========================================================= */
 
-function preventExamContextMenu(event) {
+function preventExamContextMenu(
+  event
+) {
 
   if (examActive) {
 
@@ -2653,11 +3387,14 @@ function preventExamContextMenu(event) {
    PREVENT COPY
    ========================================================= */
 
-function preventExamCopy(event) {
+function preventExamCopy(
+  event
+) {
 
   if (examActive) {
 
     event.preventDefault();
+
 
     showTemporarySecurityMessage(
       "Copying examination content is disabled."
@@ -2670,7 +3407,9 @@ function preventExamCopy(event) {
    PREVENT SELECTION
    ========================================================= */
 
-function preventExamSelection(event) {
+function preventExamSelection(
+  event
+) {
 
   if (examActive) {
 
@@ -2683,9 +3422,12 @@ function preventExamSelection(event) {
    PREVENT KEYBOARD SHORTCUTS
    ========================================================= */
 
-function preventExamKeyboard(event) {
+function preventExamKeyboard(
+  event
+) {
 
   if (!examActive) {
+
     return;
   }
 
@@ -2696,11 +3438,11 @@ function preventExamKeyboard(event) {
     ).toLowerCase();
 
 
-  /*
-   * Ctrl / Cmd shortcuts.
-   */
   if (
-    (event.ctrlKey || event.metaKey) &&
+    (
+      event.ctrlKey ||
+      event.metaKey
+    ) &&
     [
       "c",
       "x",
@@ -2708,24 +3450,23 @@ function preventExamKeyboard(event) {
       "u",
       "s",
       "p"
-    ].includes(key)
+    ].includes(
+      key
+    )
   ) {
 
     event.preventDefault();
+
 
     showTemporarySecurityMessage(
       "This keyboard action is disabled during the examination."
     );
 
+
     return;
   }
 
 
-  /*
-   * Developer tools shortcuts.
-   *
-   * These are only deterrents.
-   */
   if (
     key === "f12" ||
     (
@@ -2735,46 +3476,40 @@ function preventExamKeyboard(event) {
         "i",
         "j",
         "c"
-      ].includes(key)
+      ].includes(
+        key
+      )
     )
   ) {
 
     event.preventDefault();
 
+
     showTemporarySecurityMessage(
       "This keyboard action is disabled during the examination."
     );
+
 
     return;
   }
 
 
-  /*
-   * PrintScreen cannot reliably be prevented
-   * by a web browser.
-   *
-   * We can at least clear focus/selection.
-   */
   if (
     key === "printscreen"
   ) {
 
     event.preventDefault();
 
-    window.getSelection()?.removeAllRanges();
+
+    window
+      .getSelection()
+      ?.removeAllRanges();
+
 
     showTemporarySecurityMessage(
       "Screen capture is restricted during the examination."
     );
   }
-
-
-  /*
-   * Escape can be used to leave fullscreen.
-   *
-   * We don't attempt to prevent it because browsers
-   * intentionally reserve certain security controls.
-   */
 }
 
 
@@ -2788,6 +3523,7 @@ function handleVisibilityChange() {
     !examActive ||
     examSubmitting
   ) {
+
     return;
   }
 
@@ -2797,15 +3533,6 @@ function handleVisibilityChange() {
     "hidden"
   ) {
 
-    /*
-     * This is a deliberate strict rule:
-     *
-     * leaving the examination tab terminates
-     * the examination.
-     *
-     * The backend will ultimately be responsible
-     * for recording the attempt state.
-     */
     terminateExamForLeaving(
       "You left the examination page. Your examination has been terminated."
     );
@@ -2823,17 +3550,16 @@ function handleWindowBlur() {
     !examActive ||
     examSubmitting
   ) {
+
     return;
   }
 
 
   /*
-   * We intentionally don't immediately terminate
-   * on blur alone because browsers can trigger blur
-   * for legitimate UI interactions.
+   * We intentionally do not terminate on blur alone.
    *
-   * The visibilitychange event is the primary
-   * leave-page detector.
+   * visibilitychange remains the primary leave-page
+   * detector.
    */
 }
 
@@ -2842,24 +3568,23 @@ function handleWindowBlur() {
    BEFORE UNLOAD
    ========================================================= */
 
-function handleBeforeUnload(event) {
+function handleBeforeUnload(
+  event
+) {
 
   if (
     !examActive ||
     examSubmitting
   ) {
+
     return;
   }
 
 
-  /*
-   * Browser displays its own confirmation dialog.
-   *
-   * Custom text is generally ignored by modern browsers.
-   */
   event.preventDefault();
 
-  event.returnValue = "";
+  event.returnValue =
+    "";
 }
 
 
@@ -2876,39 +3601,39 @@ async function terminateExamForLeaving(
     examSubmitting ||
     examTerminated
   ) {
+
     return;
   }
 
 
-  examTerminated = true;
+  examTerminated =
+    true;
 
-  examSubmitting = true;
+
+  examSubmitting =
+    true;
 
 
   stopTimer();
 
 
+  const terminatedAttemptId =
+    attemptId;
+
+
   try {
 
-    /*
-     * Tell the backend that this attempt was
-     * terminated.
-     *
-     * This action will be implemented in Code.gs.
-     *
-     * We intentionally don't depend on this request
-     * succeeding before locking the frontend.
-     */
     await api(
       "terminateAttempt",
       {
         attemptId:
-          attemptId,
+          terminatedAttemptId,
 
         reason:
           "STUDENT_LEFT_EXAM"
       }
     );
+
 
   } catch (error) {
 
@@ -2917,11 +3642,16 @@ async function terminateExamForLeaving(
       error
     );
 
+
   } finally {
 
-    examActive = false;
+    examActive =
+      false;
 
-    examSubmitting = false;
+
+    examSubmitting =
+      false;
+
 
     document.body.classList.remove(
       "exam-mode"
@@ -2934,7 +3664,13 @@ async function terminateExamForLeaving(
     exitFullscreen();
 
 
-    attemptId = null;
+    clearExamSession(
+      terminatedAttemptId
+    );
+
+
+    attemptId =
+      null;
 
 
     showExamTerminationScreen(
@@ -2952,10 +3688,6 @@ function showExamTerminationScreen(
   message
 ) {
 
-  /*
-   * We use a modal-style overlay rather than silently
-   * returning to the dashboard.
-   */
   const existing =
     document.querySelector(
       ".exam-warning"
@@ -3038,7 +3770,8 @@ function showExamTerminationScreen(
    TEMPORARY SECURITY MESSAGE
    ========================================================= */
 
-let securityMessageTimeout = null;
+let securityMessageTimeout =
+  null;
 
 
 function showTemporarySecurityMessage(
@@ -3046,7 +3779,7 @@ function showTemporarySecurityMessage(
 ) {
 
   let element =
-    document.getElementById(
+    getElement(
       "securityMessage"
     );
 
@@ -3162,6 +3895,7 @@ async function requestFullscreen() {
     if (
       document.fullscreenElement
     ) {
+
       return;
     }
 
@@ -3177,12 +3911,9 @@ async function requestFullscreen() {
       await element.requestFullscreen();
     }
 
+
   } catch (error) {
 
-    /*
-     * Fullscreen can be rejected by the browser.
-     * This should never prevent the examination.
-     */
     console.warn(
       "Fullscreen request was not accepted.",
       error
@@ -3207,6 +3938,7 @@ async function exitFullscreen() {
       await document.exitFullscreen();
     }
 
+
   } catch (error) {
 
     console.warn(
@@ -3221,7 +3953,9 @@ async function exitFullscreen() {
    ESCAPE HTML
    ========================================================= */
 
-function escapeHtml(value) {
+function escapeHtml(
+  value
+) {
 
   if (
     value === null ||
@@ -3232,7 +3966,9 @@ function escapeHtml(value) {
   }
 
 
-  return String(value)
+  return String(
+    value
+  )
     .replace(
       /&/g,
       "&amp;"
@@ -3264,17 +4000,11 @@ document.addEventListener(
   "DOMContentLoaded",
   function() {
 
-    /*
-     * Start on the login screen.
-     */
     showScreen(
       "loginScreen"
     );
 
 
-    /*
-     * Allow Enter key to submit login.
-     */
     const studentId =
       getElement(
         "studentId"
@@ -3327,9 +4057,6 @@ document.addEventListener(
     }
 
 
-    /*
-     * Restore an existing login session if available.
-     */
     restoreStudentSession();
 
   }

@@ -136,22 +136,15 @@ export default async (req) => {
      */
 
     const allowedActions = [
-
-      "loginStudent",
-
-      "getBooks",
-
-      "getBook",
-
-      "getQuestions",
-
-      "startAttempt",
-
-      "submitAttempt",
-
-      "terminateAttempt"
-
-    ];
+  "loginStudent",
+  "getBooks",
+  "getBook",
+  "getQuestions",
+  "startAttempt",
+  "getActiveAttempt",
+  "submitAttempt",
+  "terminateAttempt"
+];
 
 
     if (
