@@ -35,6 +35,13 @@ let examSubmitting = false;
 let examTerminated = false;
 
 let visibilityWarningShown = false;
+let interruptionInProgress = false;
+let interruptionStartedAt = null;
+let interruptionDetectionTimer = null;
+let answerSyncInterval = null;
+let answerSyncInFlight = false;
+let lastAnswerSyncAt = 0;
+const INTERRUPTION_GRACE_MS = 30000;
 
 
 /* =========================================================
@@ -1313,6 +1320,7 @@ async function initializeExamFromAttempt(
   startTimer();
 
   setupExamSecurity();
+  startAnswerSync();
 
   showScreen(
     "examScreen"
@@ -2731,6 +2739,8 @@ async function submitExam(
     );
 
 
+    await syncAnswersToServer(true);
+
     const formattedAnswers =
       formatAnswersForSubmission();
 
@@ -2762,6 +2772,8 @@ async function submitExam(
 
 
     removeExamSecurityListeners();
+    stopAnswerSync();
+    stopInterruptionDetection();
 
 
     const completedAttemptId =
@@ -3519,26 +3531,42 @@ function preventExamKeyboard(
 
 function handleVisibilityChange() {
 
-  if (
-    !examActive ||
-    examSubmitting
-  ) {
+  if (!examActive || examSubmitting) return;
+
+  if (document.visibilityState === "hidden") {
+    if (interruptionDetectionTimer || interruptionInProgress) return;
+
+    // Delay the violation decision slightly. A normal refresh/navigation fires
+    // visibilitychange while the page is being unloaded and should not count.
+    interruptionDetectionTimer = setTimeout(function() {
+      interruptionDetectionTimer = null;
+      if (!examActive || examSubmitting || document.visibilityState !== "hidden") return;
+
+      interruptionInProgress = true;
+      interruptionStartedAt = Date.now();
+      saveExamSession();
+      recordExamInterruption();
+    }, 1000);
 
     return;
   }
 
+  if (document.visibilityState === "visible") {
+    if (interruptionDetectionTimer) {
+      clearTimeout(interruptionDetectionTimer);
+      interruptionDetectionTimer = null;
+    }
 
-  if (
-    document.visibilityState ===
-    "hidden"
-  ) {
-
-    terminateExamForLeaving(
-      "You left the examination page. Your examination has been terminated."
-    );
+    if (interruptionInProgress) {
+      const hiddenFor = interruptionStartedAt ? Date.now() - interruptionStartedAt : 0;
+      if (hiddenFor >= INTERRUPTION_GRACE_MS) {
+        terminateExamForLeaving("The examination was terminated because the examination screen remained inactive for too long.", "LONG_INTERRUPTION");
+      } else {
+        resumeExamAfterInterruption();
+      }
+    }
   }
 }
-
 
 /* =========================================================
    WINDOW BLUR
@@ -3588,97 +3616,147 @@ function handleBeforeUnload(
 }
 
 
+async function recordExamInterruption() {
+  if (!attemptId) return;
+  try {
+    await syncAnswersToServer(true);
+    const result = await api("recordInterruption", {
+      attemptId: attemptId,
+      reason: "EXAMINATION_SCREEN_INACTIVE"
+    });
+    const count = Number(result?.interruptionCount || 0);
+    if (result?.terminated || count >= 3) {
+      await terminateExamForLeaving("The examination was terminated after repeated interruptions of the examination screen.", "TOO_MANY_INTERRUPTIONS");
+      return;
+    }
+    const warning = count === 1
+      ? "Warning: the examination screen became inactive. Returning to the examination will allow you to continue. Repeated interruptions may terminate the examination."
+      : "Second warning: repeated interruptions have been detected. One more interruption may terminate this examination.";
+    showTemporarySecurityMessage(warning);
+  } catch (error) {
+    // Network loss is deliberately not treated as a violation.
+    console.warn("Unable to record interruption because the server is unreachable.", error);
+  }
+}
+
+async function resumeExamAfterInterruption() {
+  if (!attemptId) return;
+  const hiddenFor = interruptionStartedAt ? Date.now() - interruptionStartedAt : 0;
+  interruptionInProgress = false;
+  interruptionStartedAt = null;
+
+  if (hiddenFor >= INTERRUPTION_GRACE_MS) {
+    await terminateExamForLeaving("The examination was terminated because the examination screen remained inactive for too long.", "LONG_INTERRUPTION");
+    return;
+  }
+
+  try {
+    const result = await api("recordResume", { attemptId: attemptId });
+    if (result?.terminated) {
+      await terminateExamForLeaving("The examination was terminated because the examination screen remained inactive for too long.", "LONG_INTERRUPTION");
+      return;
+    }
+    showTemporarySecurityMessage("Examination resumed. Your previous answers are still saved.");
+    startTimer();
+  } catch (error) {
+    // Do not terminate for a connection problem.
+    console.warn("Unable to record examination resume.", error);
+    showTemporarySecurityMessage("Connection restored locally. Your examination remains active; answers will synchronize when the server is reachable.");
+    startTimer();
+  }
+}
+
+async function syncAnswersToServer(force = false) {
+  if (!attemptId || !examActive || answerSyncInFlight) return false;
+  const now = Date.now();
+  if (!force && now - lastAnswerSyncAt < 5000) return false;
+  answerSyncInFlight = true;
+  try {
+    await api("saveAttemptAnswers", {
+      attemptId: attemptId,
+      answers: formatAnswersForSubmission()
+    });
+    lastAnswerSyncAt = Date.now();
+    return true;
+  } catch (error) {
+    console.warn("Answer synchronization failed. Local answers remain available.", error);
+    return false;
+  } finally {
+    answerSyncInFlight = false;
+  }
+}
+
+function startAnswerSync() {
+  stopAnswerSync();
+  answerSyncInterval = setInterval(function() {
+    if (examActive && document.visibilityState === "visible") syncAnswersToServer(false);
+  }, 5000);
+}
+
+function stopInterruptionDetection() {
+  if (interruptionDetectionTimer) {
+    clearTimeout(interruptionDetectionTimer);
+    interruptionDetectionTimer = null;
+  }
+}
+
+function stopAnswerSync() {
+  if (answerSyncInterval) {
+    clearInterval(answerSyncInterval);
+    answerSyncInterval = null;
+  }
+}
+
+
 /* =========================================================
    TERMINATE EXAM FOR LEAVING
    ========================================================= */
 
-async function terminateExamForLeaving(
-  message
-) {
+async function terminateExamForLeaving(message, reason = "STUDENT_LEFT_EXAM") {
+  if (!examActive || examSubmitting || examTerminated) return;
 
-  if (
-    !examActive ||
-    examSubmitting ||
-    examTerminated
-  ) {
-
-    return;
-  }
-
-
-  examTerminated =
-    true;
-
-
-  examSubmitting =
-    true;
-
-
+  examTerminated = true;
+  examSubmitting = true;
   stopTimer();
-
-
-  const terminatedAttemptId =
-    attemptId;
-
+  const terminatedAttemptId = attemptId;
+  const formattedAnswers = formatAnswersForSubmission();
 
   try {
+    await syncAnswersToServer(true);
+    const result = await api("terminateAttempt", {
+      attemptId: terminatedAttemptId,
+      reason: reason,
+      answers: formattedAnswers
+    });
 
-    await api(
-      "terminateAttempt",
-      {
-        attemptId:
-          terminatedAttemptId,
-
-        reason:
-          "STUDENT_LEFT_EXAM"
-      }
-    );
-
-
-  } catch (error) {
-
-    console.error(
-      "TERMINATE ATTEMPT ERROR:",
-      error
-    );
-
-
-  } finally {
-
-    examActive =
-      false;
-
-
-    examSubmitting =
-      false;
-
-
-    document.body.classList.remove(
-      "exam-mode"
-    );
-
-
+    examActive = false;
+    document.body.classList.remove("exam-mode");
     removeExamSecurityListeners();
-
-
+    stopInterruptionDetection();
+    stopAnswerSync();
     exitFullscreen();
+    clearExamSession(terminatedAttemptId);
+    attemptId = null;
 
-
-    clearExamSession(
-      terminatedAttemptId
-    );
-
-
-    attemptId =
-      null;
-
-
-    showExamTerminationScreen(
-      message
-    );
+    if (result && (result.score !== undefined || result.totalMarks !== undefined)) {
+      displayResult(result);
+      showScreen("resultScreen");
+    } else {
+      showExamTerminationScreen(message);
+    }
+  } catch (error) {
+    console.error("TERMINATE ATTEMPT ERROR:", error);
+    // Network failure is NOT a cheating violation. Keep the local session so recovery can continue.
+    examTerminated = false;
+    examSubmitting = false;
+    if (reason === "LONG_INTERRUPTION") {
+      showTemporarySecurityMessage("The connection to the examination server was lost. Your examination has not been terminated. Please reconnect and return to the examination.");
+    }
+    return;
+  } finally {
+    if (!examActive) examSubmitting = false;
   }
 }
-
 
 /* =========================================================
    EXAM TERMINATION SCREEN

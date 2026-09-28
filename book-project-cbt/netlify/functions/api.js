@@ -136,15 +136,21 @@ export default async (req) => {
      */
 
     const allowedActions = [
-  "loginStudent",
-  "getBooks",
-  "getBook",
-  "getQuestions",
-  "startAttempt",
-  "getActiveAttempt",
-  "submitAttempt",
-  "terminateAttempt"
-];
+      "loginStudent",
+      "getBooks",
+      "getBook",
+      "getQuestions",
+      "startAttempt",
+      "getActiveAttempt",
+
+      // Answer persistence / interruption recovery
+      "saveAttemptAnswers",
+      "recordInterruption",
+      "recordResume",
+
+      "submitAttempt",
+      "terminateAttempt"
+    ];
 
 
     if (
