@@ -41,6 +41,10 @@ let interruptionDetectionTimer = null;
 let answerSyncInterval = null;
 let answerSyncInFlight = false;
 let lastAnswerSyncAt = 0;
+let dirtyAnswerVersions = {};
+let answerVersionCounter = 0;
+const ANSWER_SYNC_INTERVAL_MS = 15000;
+const ANSWER_SYNC_MIN_MS = 10000;
 const INTERRUPTION_GRACE_MS = 30000;
 
 
@@ -345,23 +349,12 @@ async function login() {
     );
 
 
-    await loadBooks();
-
-
     /*
-     * IMPORTANT:
-     *
-     * After login we also check whether this student
-     * already has an active attempt.
-     *
-     * This protects against:
-     *
-     * - refresh
-     * - accidental page reload
-     * - returning to the site while an exam is active
+     * The recovery endpoint is now a single server request
+     * instead of one request per available book.
      */
-    const resumed =
-      await attemptExamRecovery();
+    await loadBooks();
+    const resumed = await attemptExamRecovery();
 
 
     if (!resumed) {
@@ -972,111 +965,58 @@ async function startExam() {
 async function attemptExamRecovery() {
 
   if (!currentStudent) {
-
     return false;
   }
-
 
   const studentId =
     currentStudent.studentId ??
     currentStudent.id ??
     currentStudent.ID;
 
-
   if (!studentId) {
-
     return false;
   }
 
-
   try {
-
-    showLoading(
-      "Checking for an active examination..."
+    const activeResult = await api(
+      "getActiveAttemptForStudent",
+      { studentId: studentId }
     );
 
-
-    /*
-     * We don't know which book is active yet.
-     *
-     * Therefore check every currently available book.
-     */
-    for (
-      const book of books
+    if (
+      activeResult &&
+      activeResult.hasActiveAttempt
     ) {
+      selectedBook = activeResult.book || null;
 
-      const bookId =
-        book.bookId ??
-        book.id ??
-        book.ID;
-
-
-      if (!bookId) {
-
-        continue;
+      if (!selectedBook) {
+        throw new Error("The active examination book could not be identified.");
       }
 
+      await initializeExamFromAttempt(
+        activeResult,
+        selectedBook,
+        true
+      );
 
-      const activeResult =
-        await api(
-          "getActiveAttempt",
-          {
-            studentId:
-              studentId,
-
-            bookId:
-              bookId
-          }
-        );
-
-
-      if (
-        activeResult &&
-        activeResult.hasActiveAttempt
-      ) {
-
-        selectedBook =
-          book;
-
-
-        await initializeExamFromAttempt(
-          activeResult,
-          selectedBook,
-          true
-        );
-
-
-        return true;
-      }
+      return true;
     }
-
 
     return false;
 
-
   } catch (error) {
-
     console.error(
       "EXAM RECOVERY ERROR:",
       error
     );
 
-
     /*
-     * Recovery failure should not automatically terminate
-     * the student's account/session.
-     *
-     * They can still use the normal dashboard.
+     * Recovery failure must not terminate the student's
+     * session. They can still use the dashboard.
      */
     return false;
-
-
-  } finally {
-
-    hideLoading();
   }
 }
-
 
 /* =========================================================
    INITIALIZE EXAM FROM ATTEMPT
@@ -1304,6 +1244,11 @@ async function initializeExamFromAttempt(
 
   examActive =
     true;
+
+  /* Do not treat answers restored from the local session as new changes. */
+  dirtyAnswerVersions = {};
+  answerVersionCounter = 0;
+  lastAnswerSyncAt = 0;
 
 
   document.body.classList.add(
@@ -2169,6 +2114,7 @@ function saveAnswer(
     }
 
 
+    markAnswerDirty(questionId);
     saveExamSession();
 
     return;
@@ -2248,7 +2194,37 @@ function saveAnswer(
   }
 
 
+  markAnswerDirty(questionId);
   saveExamSession();
+}
+
+
+function markAnswerDirty(questionId) {
+  answerVersionCounter += 1;
+  dirtyAnswerVersions[String(questionId)] = answerVersionCounter;
+}
+
+
+function clearSyncedAnswerVersions(snapshot) {
+  Object.keys(snapshot).forEach(function(questionId) {
+    if (dirtyAnswerVersions[questionId] === snapshot[questionId]) {
+      delete dirtyAnswerVersions[questionId];
+    }
+  });
+}
+
+
+function buildDirtyAnswers() {
+  const dirty = {};
+  Object.keys(dirtyAnswerVersions).forEach(function(questionId) {
+    if (Object.prototype.hasOwnProperty.call(answers, questionId)) {
+      dirty[questionId] = answers[questionId];
+    } else {
+      /* Empty value tells the server to clear a previously saved answer. */
+      dirty[questionId] = '';
+    }
+  });
+  return dirty;
 }
 
 
@@ -3668,29 +3644,65 @@ async function resumeExamAfterInterruption() {
 
 async function syncAnswersToServer(force = false) {
   if (!attemptId || !examActive || answerSyncInFlight) return false;
+
   const now = Date.now();
-  if (!force && now - lastAnswerSyncAt < 5000) return false;
+  if (!force && now - lastAnswerSyncAt < ANSWER_SYNC_MIN_MS) return false;
+
+  const dirty = buildDirtyAnswers();
+  const dirtySnapshot = { ...dirtyAnswerVersions };
+
+  /*
+   * A forced sync sends the complete current answer state.
+   * Routine sync sends only questions changed since the last
+   * successful synchronization.
+   */
+  const payloadAnswers = force
+    ? formatAnswersForSubmission()
+    : dirty;
+
+  if (!force && Object.keys(payloadAnswers).length === 0) {
+    return false;
+  }
+
   answerSyncInFlight = true;
   try {
     await api("saveAttemptAnswers", {
       attemptId: attemptId,
-      answers: formatAnswersForSubmission()
+      answers: payloadAnswers
     });
+
     lastAnswerSyncAt = Date.now();
+
+    if (force) {
+      /* A force-sync represents the complete current state. */
+      dirtyAnswerVersions = {};
+    } else {
+      clearSyncedAnswerVersions(dirtySnapshot);
+    }
+
     return true;
   } catch (error) {
-    console.warn("Answer synchronization failed. Local answers remain available.", error);
+    console.warn(
+      "Answer synchronization failed. Local answers remain available.",
+      error
+    );
     return false;
   } finally {
     answerSyncInFlight = false;
   }
 }
 
+
 function startAnswerSync() {
   stopAnswerSync();
   answerSyncInterval = setInterval(function() {
-    if (examActive && document.visibilityState === "visible") syncAnswersToServer(false);
-  }, 5000);
+    if (
+      examActive &&
+      document.visibilityState === "visible"
+    ) {
+      syncAnswersToServer(false);
+    }
+  }, ANSWER_SYNC_INTERVAL_MS);
 }
 
 function stopInterruptionDetection() {
